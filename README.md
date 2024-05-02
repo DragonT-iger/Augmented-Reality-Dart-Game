@@ -8,8 +8,14 @@ vscode 설치
 terminal에
 
 pip install opencv-python
+
 pip install cvzone
 
 입력후 설치
 
 vscode 인터프리터 설정 잘못됐으면 ctal + shift + p로 인터프리터 anaconda로 바꿀수 있음
+
+
+
+
+그리고 영상은 공유해준 구글 드라이브에 있으니까 거기 있는거 복사해서 폴더에 직접 넣으면 됩니다.
