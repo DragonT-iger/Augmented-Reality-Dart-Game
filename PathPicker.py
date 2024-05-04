@@ -103,10 +103,13 @@ while True:
         path_inner = path_outer.copy() # 외부 다각형을 내부 다각형으로 복사
         path_outer.clear()
         current_path = path_outer  # 외부 다각형부터 다시 시작
+    elif key == ord('r'):  # 현재 선택한 다각형 초기화
+        current_path.clear()
+
 
 cv2.destroyAllWindows()
 cap.release()
 
 # 저장한 다각형을 파일에 저장
-with open('polygon', 'wb') as f:
+with open('polygon.pkl', 'wb') as f:
     pickle.dump(polygon, f)
