@@ -30,7 +30,7 @@ countHit = 0
 hitDrawBallInfoList = []
 totalScore = 0
 
-with open('polygon', 'rb') as f:
+with open('polygon.pkl', 'rb') as f:
     polygonsWithScore = pickle.load(f)
 print(polygonsWithScore)
 
