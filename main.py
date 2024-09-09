@@ -9,7 +9,7 @@ import os
 
 print("현재 작업 디렉토리 : ", os.getcwd())
 
-cap = cv2.VideoCapture('Videos/Video1.mp4')
+cap = cv2.VideoCapture('Videos/Video3.mp4')
 frameCounter = 0
 
 colorFinder = ColorFinder(False)
@@ -30,12 +30,25 @@ countHit = 0
 hitDrawBallInfoList = []
 totalScore = 0
 
-with open('polygon.pkl', 'rb') as f:
+with open('contours.pkl', 'rb') as f:
     polygonsWithScore = pickle.load(f)
 print(polygonsWithScore)
 
 
 cornerPoints = [[671, 614], [1585, 581], [675, 1648], [1614, 1626]]
+
+def draw_contours_on_image(image, all_contours):
+    # 외곽선을 그릴 이미지를 생성
+    output_image = image.copy()
+
+    # 모든 프레임의 외곽선을 그리기
+    for contours in all_contours:
+        for contour in contours:
+            cv2.drawContours(output_image, [contour], -1, (0, 255, 0), 2)  # 초록색 외곽선, 두께 2
+
+    return output_image
+
+
 
 def getBoard(img):
     width , height = int(400 * 1.5), int(380 * 1.5)
@@ -95,6 +108,9 @@ def detectColorDarts(img, hsvVals):
     return mask
 
 
+
+
+flag = True
 while True:
 
     frameCounter += 1
@@ -113,14 +129,16 @@ while True:
         break
 
 
+    if(flag):
+        cornerPoints = find_dartboard_cornerPoints(img)
+        flag = False
 
-    cornerPoints = find_dartboard_cornerPoints(img)
-    
-    imgBoard = getBoard(img)
+
+    # imgBoard = getBoard(img)
 
 
-    redDartMask = detectColorDarts(imgBoard, RedHsvVals)
-    greenDartMask = detectColorDarts(imgBoard, GreenHsvVals)
+    redDartMask = detectColorDarts(img, RedHsvVals)
+    greenDartMask = detectColorDarts(img, GreenHsvVals)
 
     
     # cv2.imwrite("redDartMask.png", redDartMask)
@@ -138,12 +156,12 @@ while True:
     cv2.imwrite("redDartMask2.png", redDartMask)
 
 
-    redImgContours, redConFound = cvzone.findContours(imgBoard, redDartMask, 250)
-    greenImgContours, blueConFound = cvzone.findContours(imgBoard, greenDartMask, 250)
+    redImgContours, redConFound = cvzone.findContours(img, redDartMask, 250)
+    greenImgContours, blueConFound = cvzone.findContours(img, greenDartMask, 250)
 
     if redConFound:
         countHit += 1
-        if countHit == 30:
+        if countHit == 3:
             # 원본 마스크는 유지하고, 팽창된 마스크만 따로 생성
             # dilatedMask = cv2.dilate(redDartMask, np.ones((5, 5), np.uint8), iterations=3)
 
@@ -159,11 +177,9 @@ while True:
                 polyOutside = np.array([polyScore[0]], np.int32)
                 polyInside = np.array([polyScore[1]], np.int32)
 
-
-
-
-
                 outSide = cv2.pointPolygonTest(polyOutside, center, False)
+
+                print(outSide)
 
                 
                 if polyInside is not None and polyInside.size > 2:
@@ -182,22 +198,24 @@ while True:
                     totalScore += polyScore[2]
 
     for bbox, center, poly in hitDrawBallInfoList:
-        cv2.rectangle(imgBoard, bbox, (0, 255, 0), 2)
-        cv2.circle(imgBoard, center, 5, (0, 255, 0), cv2.FILLED)
-        cv2.polylines(imgBoard, [poly], isClosed=True, color=(0, 255, 0), thickness=5)
+        cv2.rectangle(img, bbox, (0, 255, 0), 2)
+        cv2.circle(img, center, 5, (0, 255, 0), cv2.FILLED)
+        cv2.polylines(img, [poly], isClosed=True, color=(0, 255, 0), thickness=3)
 
 
     print("Red Score: ", totalScore)
 
     # cv2.imwrite('imgBoard.png',imgBoard)
     # cv2.imshow("Image", img)
-    cv2.imshow("Image Board", imgBoard)
+    cv2.imshow("Image Board", img)
 
     # cv2.imshow("Red Mask", redDartMask)
     # cv2.imshow("Green Mask", greenDartMask)
     
     cv2.imshow("Red Contours", redImgContours)
     cv2.imshow("Green Contours", greenImgContours)
+    
+   
     
 
 
