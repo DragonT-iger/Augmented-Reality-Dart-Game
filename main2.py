@@ -22,33 +22,32 @@ tracked_green_darts = []
 
 class TrackedDart:
     def __init__(self, position, color):
-        self.positions = [position]  # Positions over frames
-        self.color = color  # 'red' or 'green'
-        self.stationary_frames = 0  # Frames the dart has been stationary
-        self.missed_frames = 0  # Frames the dart was not detected
-        self.is_stationary = False
+        self.positions = [position]  # 프레임별 다트 위치 리스트
+        self.color = color  # 다트 색상 ('red' 또는 'green')
+        self.stationary_frames = 0  # 다트가 고정된 상태로 있는 프레임 수
+        self.missed_frames = 0  # 다트가 감지되지 않은 프레임 수
+        self.is_stationary = False  # 다트가 고정된 상태인지 여부
 
     def update(self, new_position, movement_threshold, stationary_threshold):
-        # Calculate movement between last position and new position
+        # 마지막 위치와 새로운 위치 간의 거리 계산
         last_position = self.positions[-1]
-        distance = math.hypot(new_position[0] - last_position[0],
-                              new_position[1] - last_position[1])
+        distance = math.hypot(new_position[0] - last_position[0], new_position[1] - last_position[1])
 
-        # Update positions
+        # 새로운 위치 추가
         self.positions.append(new_position)
 
         if distance < movement_threshold:
-            self.stationary_frames += 1
+            self.stationary_frames += 1  # 이동이 적을 경우 고정된 상태로 간주
         else:
-            self.stationary_frames = 0  # Reset if movement is significant
+            self.stationary_frames = 0  # 이동이 있으면 고정 상태 초기화
 
-        # Determine if the dart is stationary
+        # 고정된 다트로 기록할지 여부 결정
         if self.stationary_frames >= stationary_threshold:
             self.is_stationary = True
         else:
             self.is_stationary = False
 
-        self.missed_frames = 0  # Reset missed frames since we've just updated
+        self.missed_frames = 0  # 업데이트 되었으므로 미검출 프레임 초기화
 
 def draw_contours_on_image(image, all_contours):
     try:
@@ -105,7 +104,7 @@ def detect_dart_positions_with_cvzone(img, mask, min_area=250):
         dart_positions = []
 
         for contour in conFound:
-            center_x, center_y = contour['center']  # Center coordinates
+            center_x, center_y = contour['center']  # 중심 좌표
             dart_positions.append((center_x, center_y))
         return imgContours, dart_positions
     except Exception as e:
@@ -114,7 +113,6 @@ def detect_dart_positions_with_cvzone(img, mask, min_area=250):
 
 def update_tracked_darts(tracked_darts, detected_positions, color, movement_threshold=5, stationary_threshold=5):
     for position in detected_positions:
-        # Try to match with existing darts
         matched = False
         for dart in tracked_darts:
             last_position = dart.positions[-1]
@@ -123,18 +121,34 @@ def update_tracked_darts(tracked_darts, detected_positions, color, movement_thre
                 dart.update(position, movement_threshold, stationary_threshold)
                 matched = True
                 break
+
         if not matched:
-            # Create a new tracked dart
+            # 새로운 다트를 기록
             new_dart = TrackedDart(position, color)
             tracked_darts.append(new_dart)
 
-    # Handle darts that were not detected in this frame
+    # 다트가 일정 프레임 이상 감지되지 않을 경우 리스트에서 제거
     for dart in tracked_darts:
         if dart.positions[-1] not in detected_positions:
             dart.missed_frames += 1
             if dart.missed_frames > 5:
-                # Remove darts that have not been seen for a while
                 tracked_darts.remove(dart)
+
+def filter_similar_positions(stationary_positions, new_position, threshold=10):
+    for pos in stationary_positions:
+        distance = math.hypot(new_position[0] - pos[0], new_position[1] - pos[1])
+        if distance < threshold:
+            return False  # 너무 가까운 위치이면 무시
+    return True  # 새로운 위치로 간주
+
+# 고정된 다트의 위치를 기록할 리스트
+stationary_red_darts = []
+stationary_green_darts = []
+
+# 이전에 기록된 고정된 다트의 위치 리스트
+previous_stationary_red_darts = []
+previous_stationary_green_darts = []
+
 
 cap = cv2.VideoCapture('Videos/Video3.mp4')
 frameCounter = 0
@@ -171,29 +185,8 @@ while True:
     maskRed = detectColorDarts(imgBoard, RedHsvVals)
     maskGreen = detectColorDarts(imgBoard, GreenHsvVals)
 
-    # Draw contours for visualization
-    imgWithContours = draw_contours_on_image(img, all_contours)
-
-    # Extract dartboard area with contours for visualization
-    imgBoardWithContours = getBoard(imgWithContours, cornerPoints)
-
-    # Display the corner points on the original image for visualization
-    imgWithCorners = imgWithContours.copy()
-    for point in cornerPoints:
-        cv2.circle(imgWithCorners, (point[0], point[1]), 15, (0, 255, 0), cv2.FILLED)
-
-    # Display images
-    cv2.imshow("Dartboard with Polygons", imgBoardWithContours)
-
-    if DebugMode:
-        cv2.imshow("Original Image", img)
-        cv2.imshow("Mask", maskRed)
-    else:
-        cv2.imshow("Red Darts Mask", maskRed)
-        cv2.imshow("Green Darts Mask", maskGreen)
-
     # Detect red dart positions
-    redImgContours, redDartPositions = detect_dart_positions_with_cvzone(imgBoard, maskRed, 125)
+    redImgContours, redDartPositions = detect_dart_positions_with_cvzone(imgBoard, maskRed, 250)
     # Detect green dart positions
     greenImgContours, greenDartPositions = detect_dart_positions_with_cvzone(imgBoard, maskGreen)
 
@@ -201,15 +194,25 @@ while True:
     update_tracked_darts(tracked_red_darts, redDartPositions, 'red', movement_threshold=10)
     update_tracked_darts(tracked_green_darts, greenDartPositions, 'green')
 
-    # Collect positions of stationary darts
-    stationary_red_darts = [dart.positions[-1] for dart in tracked_red_darts if dart.is_stationary]
-    stationary_green_darts = [dart.positions[-1] for dart in tracked_green_darts if dart.is_stationary]
+    # 고정된 다트 위치 추출
+    for dart in tracked_red_darts:
+        if dart.is_stationary and filter_similar_positions(stationary_red_darts, dart.positions[-1]):
+            stationary_red_darts.append(dart.positions[-1])
 
-    # Output stationary dart positions
-    print("Stationary red dart positions:", stationary_red_darts)
-    print("Stationary green dart positions:", stationary_green_darts)
+    for dart in tracked_green_darts:
+        if dart.is_stationary and filter_similar_positions(stationary_green_darts, dart.positions[-1]):
+            stationary_green_darts.append(dart.positions[-1])
 
-    # Draw stationary darts on the board image
+    # 새로운 고정된 다트 위치가 추가된 경우에만 출력
+    if stationary_red_darts != previous_stationary_red_darts:
+        print("기록된 고정된 빨간 다트 위치:", stationary_red_darts)
+        previous_stationary_red_darts = stationary_red_darts.copy()
+
+    if stationary_green_darts != previous_stationary_green_darts:
+        print("기록된 고정된 녹색 다트 위치:", stationary_green_darts)
+        previous_stationary_green_darts = stationary_green_darts.copy()
+
+    # 고정된 다트 위치 시각화
     for position in stationary_red_darts:
         cv2.circle(imgBoard, (int(position[0]), int(position[1])), 10, (0, 0, 255), cv2.FILLED)
     for position in stationary_green_darts:
