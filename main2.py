@@ -11,7 +11,10 @@ colorFinder = ColorFinder(DebugMode)  # Color debug mode
 imgListBallsDectected = []
 countHit = 0
 hitDrawBallInfoList = []
-totalScore = 0
+redTotalScore = 0
+greenTotalScore = 0
+
+matrix = None
 
 RedHsvVals = {'hmin': 0, 'smin': 173, 'vmin': 90, 'hmax': 9, 'smax': 255, 'vmax': 217}
 GreenHsvVals = {'hmin': 42, 'smin': 47, 'vmin': 58, 'hmax': 70, 'smax': 255, 'vmax': 255}
@@ -82,6 +85,8 @@ def getBoard(img, cornerPoints):
         width, height = int(400 * 1.5), int(380 * 1.5)
         pts1 = np.float32(cornerPoints)
         pts2 = np.float32([[0, 0], [width, 0], [0, height], [width, height]])
+
+        global matrix
         matrix = cv2.getPerspectiveTransform(pts1, pts2)
         imgOutput = cv2.warpPerspective(img, matrix, (width, height))
         return imgOutput
@@ -141,6 +146,79 @@ def filter_similar_positions(stationary_positions, new_position, threshold=10):
             return False  # 너무 가까운 위치이면 무시
     return True  # 새로운 위치로 간주
 
+def calculate_dart_score(dart_position):
+    score = 0
+
+    # 다트 좌표를 변환된 보드 좌표로 변환
+    transformed_position = inverse_transform_dart_positions([dart_position], matrix)[0]
+
+    # 폴리곤 리스트와 그에 대응하는 점수를 설정합니다.
+    scores = [10, 20, 30, 40, 50, 60, 80, 80]  # 각 폴리곤에 대응하는 점수
+
+    # print(all_contours[0])
+    # print(transformed_position)
+    # print(board_x_shift, board_y_shift)
+
+    for i in range(8):
+        polyOutSide = np.array(all_contours[i], dtype=np.int32)
+        polyOutSide = polyOutSide.reshape(-1, 2)
+        polyInSide = np.array(all_contours[i+1], dtype=np.int32)
+        polyInSide = polyInSide.reshape(-1, 2)
+        outSide = cv2.pointPolygonTest(polyOutSide, tuple(transformed_position), False)
+        inside = cv2.pointPolygonTest(polyInSide, tuple(transformed_position), False)
+
+        # i가 ? 일때 inside outside의 
+
+        if(i == 7):
+            if(inside == 1):
+                score = scores[i]
+                print("added score: ", score)
+
+        if(inside == -1 and outSide == 1):
+            score = scores[i]
+            print("added score: ", score)
+            break
+
+        
+
+    return score
+
+def draw_stationary_darts(image, stationary_red_darts, stationary_green_darts):
+    try:
+        output_image = image.copy()
+
+        stationary_red_darts = inverse_transform_dart_positions(stationary_red_darts, matrix)
+        stationary_green_darts = inverse_transform_dart_positions(stationary_green_darts, matrix)
+
+        # Red darts
+        for position in stationary_red_darts:
+            cv2.circle(output_image, (int(position[0]), int(position[1])), 10, (0, 0, 255), cv2.FILLED)
+
+        # Green darts
+        for position in stationary_green_darts:
+            cv2.circle(output_image, (int(position[0]), int(position[1])), 10, (0, 255, 0), cv2.FILLED)
+
+        return output_image
+    except Exception as e:
+        print(f"Error drawing stationary darts: {e}")
+        return image
+
+def inverse_transform_dart_positions(dart_positions, matrix):
+    # 변환 행렬의 역행렬 계산
+    inv_matrix = np.linalg.inv(matrix)
+    
+    # 다트 좌표 리스트를 역변환
+    transformed_positions = []
+    for pos in dart_positions:
+        # 다트 좌표를 역변환
+        pts = np.array([[pos]], dtype=np.float32)
+        transformed_pos = cv2.perspectiveTransform(pts, inv_matrix)
+        transformed_positions.append((transformed_pos[0][0][0], transformed_pos[0][0][1]))
+    
+    return transformed_positions
+
+
+
 # 고정된 다트의 위치를 기록할 리스트
 stationary_red_darts = []
 stationary_green_darts = []
@@ -178,6 +256,17 @@ while True:
     if cornerPoints is None:
         cornerPoints = find_dartboard_cornerPoints(img)
 
+    contours_image = draw_contours_on_image(img, all_contours)
+
+    # Draw stationary darts on the contours image
+    contours_image_with_darts = draw_stationary_darts(contours_image, stationary_red_darts, stationary_green_darts)
+
+    # Display the updated image with stationary darts
+    cv2.imshow("Original Image with Stationary Darts", contours_image_with_darts)
+
+
+
+
     # Extract dartboard area from the original image
     imgBoard = getBoard(img, cornerPoints)
 
@@ -198,19 +287,18 @@ while True:
     for dart in tracked_red_darts:
         if dart.is_stationary and filter_similar_positions(stationary_red_darts, dart.positions[-1]):
             stationary_red_darts.append(dart.positions[-1])
+            score = calculate_dart_score(dart.positions[-1])
+            redTotalScore += score
+            print("Red Dart total score: ", redTotalScore)
 
     for dart in tracked_green_darts:
         if dart.is_stationary and filter_similar_positions(stationary_green_darts, dart.positions[-1]):
             stationary_green_darts.append(dart.positions[-1])
+            score = calculate_dart_score(dart.positions[-1])
+            greenTotalScore += score
+            print("Green Dart total score: ", greenTotalScore)
 
-    # 새로운 고정된 다트 위치가 추가된 경우에만 출력
-    if stationary_red_darts != previous_stationary_red_darts:
-        print("기록된 고정된 빨간 다트 위치:", stationary_red_darts)
-        previous_stationary_red_darts = stationary_red_darts.copy()
 
-    if stationary_green_darts != previous_stationary_green_darts:
-        print("기록된 고정된 녹색 다트 위치:", stationary_green_darts)
-        previous_stationary_green_darts = stationary_green_darts.copy()
 
     # 고정된 다트 위치 시각화
     for position in stationary_red_darts:
@@ -224,6 +312,9 @@ while True:
     # Display contour images
     cv2.imshow("Red Dart Contours", redImgContours)
     cv2.imshow("Green Dart Contours", greenImgContours)
+
+
+
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
