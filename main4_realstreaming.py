@@ -16,7 +16,7 @@ greenTotalScore = 0
 
 matrix = None
 
-RedHsvVals = {'hmin': 0, 'smin': 173, 'vmin': 90, 'hmax': 9, 'smax': 255, 'vmax': 217}
+RedHsvVals = {'hmin': 0, 'smin': 123, 'vmin': 65, 'hmax': 10, 'smax': 255, 'vmax': 217}
 GreenHsvVals = {'hmin': 42, 'smin': 47, 'vmin': 58, 'hmax': 70, 'smax': 255, 'vmax': 255}
 
 # Initialize lists for tracked darts
@@ -65,16 +65,35 @@ def draw_contours_on_image(image, all_contours):
 
 def find_dartboard_cornerPoints(img): 
     try:
+        # Convert image to grayscale
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        _, thresh = cv2.threshold(gray, 30, 255, cv2.THRESH_BINARY_INV)
+        cv2.imwrite('debug_gray_image.png', gray)  # Save grayscale image for debugging
+        
+        # Apply threshold
+        _, thresh = cv2.threshold(gray, 60, 255, cv2.THRESH_BINARY_INV)
+        cv2.imwrite('debug_thresh_image.png', thresh)  # Save threshold image for debugging
+        
+        # Find contours
         contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         if not contours:
             raise ValueError("No contours found")
+        
+        # Save contours image
+        contour_img = img.copy()
+        cv2.drawContours(contour_img, contours, -1, (0, 255, 0), 2)
+        cv2.imwrite('debug_contours_image.png', contour_img)  # Save contours image for debugging
+        
+        # Find the largest contour and get its bounding rectangle
         largest_contour = max(contours, key=cv2.contourArea)
         x, y, w, h = cv2.boundingRect(largest_contour)
+        
+        # Calculate corner points
         cornerPoints = [[x, y], [x+w, y], [x, y+h], [x+w, y+h]]
+        
         return cornerPoints
+    
     except Exception as e:
+        # Log the error and return None
         print(f"Error finding dartboard corner points: {e}")
         return None
 
@@ -96,6 +115,9 @@ def getBoard(img, cornerPoints):
 
 def detectColorDarts(img, hsvVals):
     imgColor, mask = colorFinder.update(img, hsvVals)
+
+    if(DebugMode):
+        cv2.imshow("Color Mask", mask)
     kernel = np.ones((5, 5), np.uint8)
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
     mask = cv2.medianBlur(mask, 9)
@@ -155,34 +177,36 @@ def calculate_dart_score(dart_position):
     # 폴리곤 리스트와 그에 대응하는 점수를 설정합니다.
     scores = [10, 20, 30, 40, 50, 60, 80, 80]  # 각 폴리곤에 대응하는 점수
 
-    # print(all_contours[0])
-    # print(transformed_position)
-    # print(board_x_shift, board_y_shift)
+    print(all_contours)
 
     for i in range(8):
-        polyOutSide = np.array(all_contours[i], dtype=np.int32)
-        polyOutSide = polyOutSide.reshape(-1, 2)
-        polyInSide = np.array(all_contours[i+1], dtype=np.int32)
-        polyInSide = polyInSide.reshape(-1, 2)
+        try:
+            polyOutSide = np.array(all_contours[i], dtype=np.int32)
+            polyOutSide = polyOutSide.reshape(-1, 2)
+            polyInSide = np.array(all_contours[i+1], dtype=np.int32)
+            polyInSide = polyInSide.reshape(-1, 2)
+        except (ValueError, IndexError) as e:
+            # 배열의 형태가 일관되지 않거나 인덱스 범위를 벗어난 경우 건너뜁니다.
+            print(f"Invalid contour data at index {i}: {e}")
+            continue
+
         outSide = cv2.pointPolygonTest(polyOutSide, tuple(transformed_position), False)
         inside = cv2.pointPolygonTest(polyInSide, tuple(transformed_position), False)
 
-        # i가 ? 일때 inside outside의 
-
-        if(i == 7):
-            if(inside == 1):
+        if i == 7:
+            if inside == 1:
                 score = scores[i]
                 print("added score: ", score)
                 break
 
-        if(inside == -1 and outSide == 1):
+        if inside == -1 and outSide == 1:
             score = scores[i]
             print("added score: ", score)
             break
 
-        
-
     return score
+
+
 
 def draw_stationary_darts(image, stationary_red_darts, stationary_green_darts):
     try:
@@ -229,11 +253,17 @@ previous_stationary_red_darts = []
 previous_stationary_green_darts = []
 
 
-cap = cv2.VideoCapture('Videos/Video3.mp4')
+# RTSP 스트림 URL (핸드폰의 RTSP 주소)
+rtsp_url = 'http://192.168.0.14:8080/video'
+
+# 스트림 열기
+cap = cv2.VideoCapture(rtsp_url)
+
+# cap = cv2.VideoCapture('Videos/Video3.mp4')
 frameCounter = 0
 
 try:
-    with open('contours.pkl', 'rb') as f:
+    with open('contours_real.pkl', 'rb') as f:
         all_contours = pickle.load(f)
 except Exception as e:
     print(f"Error loading contours: {e}")

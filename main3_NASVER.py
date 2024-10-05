@@ -4,6 +4,7 @@ import pickle
 import math
 from cvzone.ColorModule import ColorFinder
 import cvzone
+import subprocess
 
 DebugMode = False
 colorFinder = ColorFinder(DebugMode)  # Color debug mode
@@ -22,6 +23,22 @@ GreenHsvVals = {'hmin': 42, 'smin': 47, 'vmin': 58, 'hmax': 70, 'smax': 255, 'vm
 # Initialize lists for tracked darts
 tracked_red_darts = []
 tracked_green_darts = []
+
+
+command = [
+    'ffmpeg',
+    '-re',  # 실시간으로 처리
+    '-f', 'rawvideo',  # 원본 비디오 형식
+    '-pix_fmt', 'bgr24',  # OpenCV가 BGR로 처리하므로 픽셀 포맷을 bgr24로 설정
+    '-s', '640x480',  # 프레임 크기
+    '-i', '-',  # 표준 입력으로 영상을 가져옴
+    '-f', 'rtsp',  # RTSP 형식으로 스트리밍
+    '-rtsp_transport', 'tcp',  # RTSP는 TCP를 통해 전송
+    'rtsp://localhost:8554/mystream'  # RTSP 주소
+]
+
+
+process = subprocess.Popen(command, stdin=subprocess.PIPE)
 
 class TrackedDart:
     def __init__(self, position, color):
@@ -263,7 +280,7 @@ while True:
     contours_image_with_darts = draw_stationary_darts(contours_image, stationary_red_darts, stationary_green_darts)
 
     # Display the updated image with stationary darts
-    cv2.imshow("Original Image with Stationary Darts", contours_image_with_darts)
+    # cv2.imshow("Original Image with Stationary Darts", contours_image_with_darts)
 
 
 
@@ -307,12 +324,12 @@ while True:
     for position in stationary_green_darts:
         cv2.circle(imgBoard, (int(position[0]), int(position[1])), 10, (0, 255, 0), cv2.FILLED)
 
-    # Display the updated board image
-    cv2.imshow("Dartboard with Stationary Darts", imgBoard)
+    # RTSP로 전송하기 위해 imgBoard를 FFmpeg에 전달
+    process.stdin.write(imgBoard.tobytes())
 
     # Display contour images
-    cv2.imshow("Red Dart Contours", redImgContours)
-    cv2.imshow("Green Dart Contours", greenImgContours)
+    # cv2.imshow("Red Dart Contours", redImgContours)
+    # cv2.imshow("Green Dart Contours", greenImgContours)
 
 
 
@@ -321,4 +338,6 @@ while True:
         break
 
 cap.release()
+process.stdin.close()
+process.wait()
 cv2.destroyAllWindows()

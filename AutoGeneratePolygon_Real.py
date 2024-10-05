@@ -16,10 +16,10 @@ def draw_contours_on_image(image, all_contours):
 
     return output_image
 
-def simplify_contours(contours, max_points=200):
+def simplify_contours(contours, max_points=500):
     simplified_contours = []
     for contour in contours:
-        epsilon = 0.005 * cv2.arcLength(contour, True)
+        epsilon = 0.002 * cv2.arcLength(contour, True)
         approx = cv2.approxPolyDP(contour, epsilon, True)
         if len(approx) > max_points:
             approx = approx[::len(approx)//max_points][:max_points]
@@ -48,14 +48,11 @@ def remove_nearby_white_areas(image):
 # 비디오 파일 로드
 # cap = cv2.VideoCapture('Videos/Video3.mp4')
 # RTSP 스트림 URL (핸드폰의 RTSP 주소)
-# rtsp_url = 'http://192.168.0.q:8080/video'
+rtsp_url = 'http://192.168.0.11:8080/video'
 
 # 스트림 열기
-cap = cv2.VideoCapture("Videos/Video3.mp4")
+cap = cv2.VideoCapture(rtsp_url)
 frame_count = 0
-
-
-autoStopCounter = 0
 
 # 기존 Pictures/AutoGeneratePolygon 디렉토리 삭제 후 재생성
 base_dir = 'Pictures/AutoGeneratePolygon'
@@ -66,6 +63,8 @@ os.makedirs(base_dir)
 # 외곽선 좌표를 저장할 리스트 초기화
 all_contours = []
 
+autoStopCounter = 0
+
 while cap.isOpened():
     ret, frame = cap.read()
     if not ret:
@@ -74,8 +73,12 @@ while cap.isOpened():
     frame_count += 1
 
     if frame_count % 30 == 0:  # 프레임 간격 조정 (매 30번째 프레임 저장)
-        if(autoStopCounter == 8):
+
+        if autoStopCounter == 8:
             break
+
+        autoStopCounter += 1
+        
         # 프레임별 디렉토리 생성
         frame_dir = os.path.join(base_dir, f'frame_{frame_count}')
         if not os.path.exists(frame_dir):
@@ -146,5 +149,5 @@ cap.release()
 cv2.destroyAllWindows()
 
 # 외곽선 좌표를 파일로 저장
-with open('contours.pkl', 'wb') as f:
+with open('contours_real.pkl', 'wb') as f:
     pickle.dump(all_contours, f)
