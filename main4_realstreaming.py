@@ -177,7 +177,7 @@ def calculate_dart_score(dart_position):
     # 폴리곤 리스트와 그에 대응하는 점수를 설정합니다.
     scores = [10, 20, 30, 40, 50, 60, 80, 80]  # 각 폴리곤에 대응하는 점수
 
-    print(all_contours)
+    # print(all_contours)
 
     for i in range(8):
         try:
@@ -254,11 +254,10 @@ previous_stationary_green_darts = []
 
 
 # RTSP 스트림 URL (핸드폰의 RTSP 주소)
-rtsp_url = 'http://192.168.0.14:8080/video'
+rtsp_url = 'http://192.168.0.253:8080/video'
 
 # 스트림 열기
 cap = cv2.VideoCapture(rtsp_url)
-
 # cap = cv2.VideoCapture('Videos/Video3.mp4')
 frameCounter = 0
 

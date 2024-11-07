@@ -1,8 +1,7 @@
 import cv2
 
 # RTSP 스트림 URL (핸드폰의 RTSP 주소)
-rtsp_url = 'http://192.168.0.45:8080/video'
-
+rtsp_url = 'rtsp://172.30.1.244:8999/mystream'
 # 스트림 열기
 cap = cv2.VideoCapture(rtsp_url)
 

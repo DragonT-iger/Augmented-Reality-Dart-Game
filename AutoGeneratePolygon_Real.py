@@ -48,7 +48,7 @@ def remove_nearby_white_areas(image):
 # 비디오 파일 로드
 # cap = cv2.VideoCapture('Videos/Video3.mp4')
 # RTSP 스트림 URL (핸드폰의 RTSP 주소)
-rtsp_url = 'http://192.168.0.11:8080/video'
+rtsp_url = 'http://192.168.0.253:8080/video'
 
 # 스트림 열기
 cap = cv2.VideoCapture(rtsp_url)

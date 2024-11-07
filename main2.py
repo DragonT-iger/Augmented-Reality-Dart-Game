@@ -179,9 +179,6 @@ def calculate_dart_score(dart_position):
             score = scores[i]
             print("added score: ", score)
             break
-
-        
-
     return score
 
 def draw_stationary_darts(image, stationary_red_darts, stationary_green_darts):
