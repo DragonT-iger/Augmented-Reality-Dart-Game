@@ -5,7 +5,7 @@ import math
 from cvzone.ColorModule import ColorFinder
 import cvzone
 
-DebugMode = False
+DebugMode = True
 colorFinder = ColorFinder(DebugMode)  # Color debug mode
 
 imgListBallsDectected = []
@@ -270,6 +270,8 @@ while True:
 
     # Detect red and green darts using color detection
     maskRed = detectColorDarts(imgBoard, RedHsvVals)
+
+    cv2.imshow("Mask Red", maskRed)
     maskGreen = detectColorDarts(imgBoard, GreenHsvVals)
 
     # Detect red dart positions

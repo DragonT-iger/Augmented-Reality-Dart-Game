@@ -98,6 +98,14 @@ while cap.isOpened():
         # 원을 그리기 위한 빈 이미지 생성
         output_image = np.zeros_like(gray)
 
+        # 필터링 없이 그리기
+        output_image2 = np.zeros_like(gray)
+
+        for contour in contours:
+            cv2.drawContours(output_image2, [contour], -1, (255, 255, 255), 1)
+        
+        cv2.imwrite(os.path.join(frame_dir, f'output_image_{frame_count}.jpg'), output_image2)
+
         # 거의 사각형 모양인 것만 필터링 후 그리기
         for contour in contours:
             x, y, w, h = cv2.boundingRect(contour)
@@ -146,5 +154,5 @@ cap.release()
 cv2.destroyAllWindows()
 
 # 외곽선 좌표를 파일로 저장
-with open('contours.pkl', 'wb') as f:
+with open('contours2.pkl', 'wb') as f:
     pickle.dump(all_contours, f)
