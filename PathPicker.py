@@ -1,3 +1,6 @@
+# 사용하지 않는 구버전 다트판 인식기
+
+
 import cv2
 import numpy as np
 import pickle
