@@ -1,3 +1,5 @@
+# 테스트용 - 폴리곤 형식이 아닌걸 제외시키지 못함 AutoGeneratePolygon_Real을 사용해주세요
+
 import cv2
 import numpy as np
 import os
