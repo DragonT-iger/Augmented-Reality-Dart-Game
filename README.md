@@ -42,4 +42,4 @@
 
 아래 링크에서 프로젝트의 실행 결과를 확인할 수 있습니다:
 
-- [📹 구글 드라이브 시연 영상](https://drive.google.com/file/d/1INiyMkmveRPpHs415i-RGBh41W2Kx2kR/view?usp=drive_link)
+- [📹 구글 드라이브 시연 영상](https://drive.google.com/file/d/1HsT0zPCUAQ85SsXe4fHzjO5MF2nShkC3/view?usp=sharing)
